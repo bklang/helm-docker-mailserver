@@ -1,5 +1,5 @@
 {{/* This whole template is only necessary if we've enabled creation of the configmap (default true) */}}
-{{- if not .Values.configMap.useExisting -}}  
+{{- if not .Values.configMap.useExisting -}}
 ---
 apiVersion: "v1"
 kind: "ConfigMap"
@@ -12,7 +12,7 @@ metadata:
   name: {{ template "dockermailserver.fullname" . }}-configs
 data:
   {{/* Use sample data if user is running in demo mode */}}
-  {{- if .Values.demoMode.enabled -}}  
+  {{- if .Values.demoMode.enabled -}}
   ### We are in demo mode, so add in some sample data for quick testing
   postfix-accounts.cf: |
     # A sample user - the password is "password"
@@ -24,10 +24,10 @@ data:
     127.0.0.1
     localhost
   ### End demo mode data
-  {{/* Use real data from "config" subdirectory if user is _not_ running in demo mode */}}  
+  {{/* Use real data from "config" subdirectory if user is _not_ running in demo mode */}}
   {{ else -}}
   {{- (.Files.Glob "config/*").AsConfig | nindent 2 }}
-  {{- (.Files.Glob "config/opendkim/*").AsConfig | nindent 2 }} 
+  {{- (.Files.Glob "config/opendkim/*").AsConfig | nindent 2 }}
   {{- end }}
   postfix-main.cf: |
   {{/* Enable proxy protocol for postscreen / dovecot */}}
@@ -44,7 +44,7 @@ data:
     service imap-login {
       inet_listener imap {
         {{ if .Values.haproxy.enabled -}}haproxy = yes{{ end }}
-      }  
+      }
       inet_listener imaps {
         {{ if .Values.haproxy.enabled -}}haproxy = yes{{ end }}
       }
@@ -53,15 +53,15 @@ data:
         port = 10993
         ssl = yes
       }
-    {{ end }}      
-    }    
+    {{ end }}
+    }
     service pop3-login {
       inet_listener pop3 {
         {{ if .Values.haproxy.enabled -}}haproxy = yes{{ end }}
       }
       inet_listener pop3s {
         {{ if .Values.haproxy.enabled -}}haproxy = yes{{ end }}
-      }                        
+      }
     }
 
 
@@ -84,7 +84,7 @@ data:
         user = docker
       }
     }
-    
+
     doveadm_port = 4117
     doveadm_password = secret
 
@@ -105,6 +105,26 @@ data:
       sieve = /var/mail/sieve/%d/%n/.dovecot.sieve
       sieve_dir = /var/mail/sieve/%d/%n/sieve
     }
+  {{- if .Values.masteruser.enabled }}
+  11-auth-master.conf: |
+    # Example master user passdb using passwd-file. You can use any passdb though.
+    passdb {
+      driver = passwd-file
+      master = yes
+      args = /etc/dovecot/master-users
+
+      # Unless you're using PAM, you probably still want the destination user to
+      # be looked up from passdb that it really exists. pass=yes does that.
+      pass = yes
+    }
+    auth_master_user_separator = *
+
+  master-users: |
+    {{ range .Values.masteruser.values -}}
+    {{ . }}
+    {{- end }}
+
+  {{- end }}
 
   am-i-healthy.sh: |
     #!/bin/bash
